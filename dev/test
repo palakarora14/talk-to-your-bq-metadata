@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+flags=()
+
+if [[ "${CI:-false}" != "true" ]]; then
+  flags+=("--cov-report=html")
+fi
+
+python3 -m pytest \
+  "${flags[@]}" \
+  "$@"

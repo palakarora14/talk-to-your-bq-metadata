@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+cd "$(dirname "$0")"/..
+
+if [[ -n "${BUILDKITE:-}" ]]; then
+  image_to_pull="$(grep -v ":${BUILDKITE_BUILD_NUMBER}@" artifacts/pipeline-release.txt | head -n1)"
+  docker pull "${image_to_pull}" >&2
+  docker tag "${image_to_pull}" hackday-45-talk-to-your-data-dev
+else
+  docker build --tag hackday-45-talk-to-your-data-dev --file Dockerfile.ui . >&2
+fi
+
+# If we don't supply it with arguments, then assume that we are wanting a shell and we need it interactive, otherwise assume we are running another script like auto/test
+if [[ $# -eq 0 ]]; then
+  interactive="true"
+  args=("bash")
+else
+  args=("$@")
+fi
+
+# If we are in a termial, then we want to enable tty for docker
+if [[ -t 1 ]]; then
+  tty="true"
+fi
+
+# On linux, any files that are created will now be owned by the current user, this is not an issue on OSX
+if [[ "$(uname -s)" == "Linux" ]]; then
+  user="--user=$(id -u):$(id -g)"
+fi
+
+docker run --rm \
+  --volume "$PWD:/app" \
+  --env CI \
+  ${tty:+"-t"} \
+  ${interactive:+"-i"} \
+  ${user:+"${user}"} \
+  hackday-45-talk-to-your-data-dev \
+  "${args[@]}"

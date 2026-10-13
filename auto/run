@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+cd "$(dirname "$0")"/..
+
+docker build --tag hackday-45-talk-to-your-data --file Dockerfile.vdb .
+docker run --rm \
+  --env AWS_ACCESS_KEY_ID \
+  --env AWS_SECRET_ACCESS_KEY \
+  --env AWS_SESSION_TOKEN \
+  --env AWS_DEFAULT_REGION \
+  --env PORTKEY_API_KEY \
+  --volume "$HOME/.config/gcloud:/home/somebody/.config/gcloud" \
+  hackday-45-talk-to-your-data "$@"

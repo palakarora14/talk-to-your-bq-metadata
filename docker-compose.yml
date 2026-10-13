@@ -1,0 +1,49 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    working_dir: /app
+    volumes:
+      - .:/app
+      - ./chroma_db:/app/chroma_db
+    environment:
+      - PYTHONPATH=/app/src
+      - CHROMA_PATH=/app/chroma_db
+      - PORTKEY_API_KEY=${PORTKEY_API_KEY:-}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-}
+    ports:
+      - "8000:8000"
+    command: uvicorn hackday_45_talk_to_your_data.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    working_dir: /app
+    volumes:
+      - .:/app
+      - ./chroma_db:/app/chroma_db
+    environment:
+      - PYTHONPATH=/app/src
+      - CHROMA_PATH=/app/chroma_db
+      - API_URL=http://api:8000
+      - GCP_PROJECT=${GCP_PROJECT:-rea-gcp-dp-dev}
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+    command: streamlit run src/hackday_45_talk_to_your_data/ui/app.py --server.address=0.0.0.0 --server.port=8501
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app/src
+    entrypoint: ["dev/test"]
+
+

@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export VAULT_ADDR=https://prod.vault.reainternal.net
+export AWS_REGION=ap-southeast-2
+ROLESET=datacat-metastore-bigquery-reader-dev-roleset
+export GCP_PROJECT=rea-gcp-dp-dev
+
+# ── try vault (requires vault CLI + AWS credentials with roleset access) ───────
+if command -v vault &>/dev/null && command -v aws &>/dev/null; then
+  echo "Attempting Vault auth..."
+  if vault login --method aws role=aws_${ROLESET} 2>/dev/null; then
+    vault read -field private_key_data gcp/key/${ROLESET} | base64 --decode > /tmp/gcp_creds.json
+    export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_creds.json
+    echo "Using GCP credentials from Vault."
+  else
+    echo "Vault auth failed — falling back to Application Default Credentials."
+  fi
+else
+  echo "vault/aws CLI not found — falling back to Application Default Credentials."
+fi
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ── ADC check ─────────────────────────────────────────────────────────────────
+if [[ -z "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
+  if ! command -v gcloud &>/dev/null; then
+    echo "ERROR: No GCP credentials available. Either:"
+    echo "  1. Install vault + aws CLI and ensure roleset access, OR"
+    echo "  2. Run: gcloud auth application-default login"
+    exit 1
+  fi
+  ADC_FILE="${HOME}/.config/gcloud/application_default_credentials.json"
+  if [[ ! -f "${ADC_FILE}" ]]; then
+    echo "ERROR: No Application Default Credentials found. Run:"
+    echo "  gcloud auth application-default login"
+    exit 1
+  fi
+  echo "Using Application Default Credentials."
+fi
+# ──────────────────────────────────────────────────────────────────────────────
+
+uv run python -m hackday_45_talk_to_your_data.main "${@:-ingest}"

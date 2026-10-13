@@ -1,0 +1,96 @@
+[project]
+name = "hackday-45-talk-to-your-data"
+version = "1.0.0"
+description = "hackday-45-talk-to-your-data"
+requires-python = ">=3.13"
+dependencies = [
+    "boto3>=1.43.85",
+    "fastapi>=0.141.1",
+    "google-api-core>=2.34.0",
+    "google-auth>=2.57.0",
+    "google-cloud-bigquery>=3.44.0",
+    "chromadb>=1.5.9",
+    "loguru>=0.7.3",
+    "openai>=2.29.0",
+    "pydantic>=2.12.5",
+    "python-dotenv>=1.2.1",
+    "sentence-transformers>=6.0.1",
+    "streamlit>=1.62.0",
+    "typer>=0.21.1",
+    "uvicorn>=0.52.4",
+]
+
+[project.scripts]
+hackday_45_talk_to_your_data = "hackday_45_talk_to_your_data.main:app"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pre-commit>=4.0.1",
+    "pyright[nodejs]>=1.1.408",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.14.13",
+]
+
+[tool.uv]
+package = true
+exclude-newer = "7 days"
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "I",  # import sorting (isort-compatible)
+    "B",  # flake8-bugbear
+    "N",  # pep8-naming
+    "UP", # pyupgrade
+]
+
+# pyright resolves the environment from the `python` on PATH, so it works both on
+# the host (via `uv run`, which activates .venv) and inside the dev container
+# (where /opt/venv/bin is on PATH). No venvPath/venv is hardcoded on purpose.
+[tool.pyright]
+pythonVersion = "3.14"
+include = ["src", "tests"]
+exclude = ["**/__pycache__"]
+typeCheckingMode = "strict"  # ["off", "basic", "standard", "strict"]
+reportMissingModuleSource = "none"  # google-cloud-bigquery ships no type stubs
+
+[tool.pytest.ini_options]
+addopts = "-ra --cov --cov-report=term-missing --durations=5 --strict-config --strict-markers"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.coverage.run]
+branch = true
+source_pkgs = ["hackday_45_talk_to_your_data"]
+
+[tool.coverage.paths]
+source = ["src/hackday_45_talk_to_your_data"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+skip_empty = true
+sort = "-cover"
+fail_under = 70
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "raise RuntimeError",
+    "if TYPE_CHECKING:",
+    "\\.\\.\\.",
+]
+

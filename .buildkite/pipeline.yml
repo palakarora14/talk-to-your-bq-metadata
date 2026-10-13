@@ -1,0 +1,58 @@
+---
+steps:
+  - name: ":hammer_and_pick: Build dev image"
+    key: "build-pipeline-image"
+    agents:
+      queue: "rea-artifacts:build"
+    plugins:
+      - ssh://git@git.realestate.com.au/buildkite-plugin/ecr-release-buildkite-plugin#v1.6.4:
+          namespace: "data-platform"
+          repository: "hackday-45-talk-to-your-data-dev"
+          tags: "$BUILDKITE_BUILD_NUMBER"
+          dockerfile-path: "Dockerfile.ui"
+          artifacts-path: "pipeline-release.txt"
+          lifecycle_policy:
+            retain_tagged_image_count: 5
+
+  - name: ":lint-roller: Lint python"
+    depends_on: "build-pipeline-image"
+    command: "auto/lint"
+    plugins:
+      - artifacts#v1.9.4:
+          download: "artifacts/pipeline-release.txt"
+
+  - name: ":pytest: Test python"
+    depends_on: "build-pipeline-image"
+    command: "auto/test"
+    plugins:
+      - artifacts#v1.9.4:
+          download: "artifacts/pipeline-release.txt"
+
+  - name: ":pyright: Type-check python"
+    depends_on: "build-pipeline-image"
+    command: "auto/type-check"
+    plugins:
+      - artifacts#v1.9.4:
+          download: "artifacts/pipeline-release.txt"
+
+  - name: ":hadolint: Lint Dockerfiles"
+    command: "auto/lint-docker"
+
+  - name: ":bash: Lint shell scripts"
+    command: "auto/lint-shell"
+
+  # Uncomment the following step once you have created a .treasuremap-data.json file
+  # It's recommended to keep validation near the top of the pipeline, with other validation checks
+  # - name: ":mag: Validate TreasureMap data"
+  #   plugins:
+  #     ssh://git@git.realestate.com.au/buildkite-plugin/treasuremap-shovel-buildkite-plugin#1.0.2
+  #       push: false
+
+  # Add additional steps here
+
+  # Uncomment this step when you have created a .treasuremap-data.json file. Note that the buildkite
+  # plugin validates by default before pushing.
+  # - name: ":world_map: Upload data to TreasureMap"
+  #   branches: main
+  #   plugins:
+  #     ssh://git@git.realestate.com.au/buildkite-plugin/treasuremap-shovel-buildkite-plugin#1.0.2

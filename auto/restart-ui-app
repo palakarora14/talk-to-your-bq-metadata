@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+# Load .env if present
+if [[ -f .env ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source .env
+  set +a
+fi
+
+# Forward GCP credentials into the compose environment
+ADC_FILE="${HOME}/.config/gcloud/application_default_credentials.json"
+if [[ -z "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
+  if [[ -f "${ADC_FILE}" ]]; then
+    export GOOGLE_APPLICATION_CREDENTIALS="${ADC_FILE}"
+  fi
+fi
+
+chmod -R 777 chroma_db/
+
+echo "Restarting UI and API on http://localhost:8501 ..."
+docker compose down
+docker compose up --build api ui

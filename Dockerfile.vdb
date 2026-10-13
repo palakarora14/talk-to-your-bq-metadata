@@ -1,0 +1,40 @@
+FROM python:3.14.7-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
+# This docker file is aimed at producing an image to deploy for production
+# Adjust as required for your project
+
+# We always want to be using the latest version of our dependency manager.
+# Hadolint doesn't understand --mount=type=cache yet.
+# hadolint ignore=DL3013,DL3042
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -U pip uv
+
+RUN addgroup --system somebody && \
+    adduser --system --ingroup somebody --home /home/somebody somebody && \
+    mkdir -p /app /opt/venv /home/somebody && \
+    chown -R somebody:somebody /app /opt/venv /home/somebody
+
+# HOME must point at a writable dir: system users default to /nonexistent, which breaks
+# tools that cache under $HOME (e.g. uv).
+ENV HOME=/home/somebody \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_LINK_MODE=copy \
+    PATH="/opt/venv/bin:$PATH"
+
+# hadolint ignore=DL3066
+USER somebody
+WORKDIR /app
+COPY pyproject.toml uv.lock /app/
+RUN uv sync --no-dev --no-install-project
+
+COPY --chown=somebody:somebody src /app/src
+RUN uv pip install -e . --no-deps
+
+# Setting PYTHONUNBUFFERED to a non-empty value different from 0 ensures that the python
+# output (i.e. the stdout and stderr streams) are sent straight to the terminal without
+# first being buffered. This ensures you see the output in real time, and is also important
+# for logging in production.
+ENV PYTHONUNBUFFERED=1
+
+# `python -m` (rather than the installed console-script) puts /app on sys.path so the
+# top-level `src` namespace package (client/, config/) used by main.py is importable.
+ENTRYPOINT ["python", "-m", "hackday_45_talk_to_your_data.main"]

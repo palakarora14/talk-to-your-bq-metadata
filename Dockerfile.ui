@@ -1,0 +1,34 @@
+FROM python:3.14.7-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
+# This docker file is aimed at running development tools
+# Adjust as required for your project
+
+# We always want to be using the latest version of our dependency manager.
+# Hadolint doesn't understand --mount=type=cache yet.
+# hadolint ignore=DL3013,DL3042
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -U pip uv
+
+RUN addgroup --system somebody && \
+    adduser --system --ingroup somebody --home /home/somebody somebody && \
+    mkdir -p /app /opt/venv /home/somebody && \
+    chown -R somebody:somebody /app /opt/venv /home/somebody
+
+# The venv lives outside /app so it survives the bind mount that auto/dev-environment
+# mounts over /app at runtime. Putting its bin on PATH lets tools run without `uv run`.
+# HOME must point at a writable dir: system users default to /nonexistent, which breaks
+# tools that cache under $HOME (e.g. uv).
+ENV HOME=/home/somebody \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_LINK_MODE=copy \
+    PATH="/opt/venv/bin:$PATH"
+
+# hadolint ignore=DL3066
+USER somebody
+WORKDIR /app
+COPY pyproject.toml uv.lock /app/
+RUN uv sync --no-install-project
+
+# Setting PYTHONUNBUFFERED to a non-empty value different from 0 ensures that the python
+# output (i.e. the stdout and stderr streams) are sent straight to the terminal without
+# first being buffered. This ensures you see the output in real time.
+ENV PYTHONUNBUFFERED=1
